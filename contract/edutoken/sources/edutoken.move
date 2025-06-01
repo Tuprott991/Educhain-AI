@@ -9,8 +9,28 @@ module edutoken::edutoken {
 
     public struct EDUTOKEN has drop {}
 
+	public struct EDUTOKENTreasuryCoinfig has key, store{
+		id: object::UID,
+		treasuryCap: coin::TreasuryCap<EDUTOKEN>
+	}
+
+	public(package) fun mint_edutoken(
+		eDUTOKENTreasuryCoinfig: &mut EDUTOKENTreasuryCoinfig,
+		amount: u64,
+		ctx: &mut tx_context::TxContext
+	): coin::Coin<EDUTOKEN>{
+		coin::mint<EDUTOKEN>(&mut eDUTOKENTreasuryCoinfig.treasuryCap, amount, ctx)
+	}
+
+	public(package) fun burn_edutoken(
+        eDUTOKENTreasuryCoinfig: &mut EDUTOKENTreasuryCoinfig,
+        coin: coin::Coin<EDUTOKEN>
+    ) {
+        coin::burn<EDUTOKEN>(&mut eDUTOKENTreasuryCoinfig.treasuryCap, coin);
+    }
+
     fun init(witness: EDUTOKEN, ctx: &mut tx_context::TxContext) {
-		let (treasuryCap, coinMetadata) = coin::create_currency<EDUTOKEN>(
+		let (mut treasuryCap, coinMetadata) = coin::create_currency<EDUTOKEN>(
 				witness,
 				6,
 				b"EDUTOKEN",
@@ -20,8 +40,13 @@ module edutoken::edutoken {
 				ctx,
 		);
 		transfer::public_freeze_object<coin::CoinMetadata<EDUTOKEN>>(coinMetadata);
-		let mut treasuryCap_ref = treasuryCap;
-                transfer::public_transfer<coin::Coin<EDUTOKEN>>(coin::mint<EDUTOKEN>(&mut treasuryCap_ref, TOTAL_SUPPLY, ctx), tx_context::sender(ctx));
-                transfer::public_transfer<coin::TreasuryCap<EDUTOKEN>>(treasuryCap_ref, @0x0);
+		let init_supply = coin::mint<EDUTOKEN>(&mut treasuryCap, TOTAL_SUPPLY, ctx);
+    	transfer::public_transfer<coin::Coin<EDUTOKEN>>(init_supply, tx_context::sender(ctx));
+
+		let eDUTOKENTreasuryCoinfig = EDUTOKENTreasuryCoinfig{
+            id: object::new(ctx), 
+            treasuryCap: treasuryCap,
+        };
+        transfer::public_share_object<EDUTOKENTreasuryCoinfig>(eDUTOKENTreasuryCoinfig);
     }
 }
